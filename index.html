@@ -1,0 +1,326 @@
+<!DOCTYPE html>
+<html lang="ja">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Webサイトエビデンス取得ツール <v1 class="0 2"></v1></title>
+
+    <!-- Tailwind CSS - Play CDN（開発用） -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- JSZip -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+    <!-- カスタムCSS -->
+    <link rel="stylesheet" href="./style.css" />
+  </head>
+  <body class="p-0">
+    <!-- Sidebar -->
+    <aside id="sidebar" class="no-print-on-pdf">
+      <h3 class="sidebar-title">テストプロジェクト</h3>
+      <button
+        id="addProjectButton"
+        class="flex items-center bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded-lg w-full mb-4"
+      >
+        <svg
+          class="w-5 h-5 mr-2"
+          fill="currentColor"
+          viewBox="0 0 20 20"
+          xmlns="http://www.w3.org/2000/svg"
+        >
+          <path
+            fill-rule="evenodd"
+            d="M10 5a1 1 0 011 1v3h3a1 1 0 110 2h-3v3a1 1 0 11-2 0v-3H6a1 1 0 110-2h3V6a1 1 0 011-1z"
+            clip-rule="evenodd"
+          ></path>
+        </svg>
+        プロジェクトの追加
+      </button>
+      <nav id="projectNav"></nav>
+    </aside>
+
+    <!-- Sidebar toggle button -->
+    <button
+      id="sidebarToggleBtn"
+      class="no-print-on-pdf"
+      title="サイドバー切替"
+    >
+      <svg
+        class="w-6 h-6"
+        fill="none"
+        stroke="currentColor"
+        viewBox="0 0 24 24"
+        xmlns="http://www.w3.org/2000/svg"
+      >
+        <path
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          stroke-width="2"
+          d="M4 6h16M4 12h16M4 18h16"
+        ></path>
+      </svg>
+    </button>
+
+    <!-- Main content -->
+    <div id="mainContentWrapper" class="p-6">
+      <div
+        id="appContent"
+        class="max-w-4xl mx-auto bg-white rounded-xl shadow-lg p-8"
+      >
+        <h1 class="text-3xl font-extrabold text-center text-gray-800 mb-6">
+          Webサイトエビデンス取得ツール 📸
+        </h1>
+        <p class="text-center text-gray-600 mb-8">
+          キャプチャをクリップボードにコピーし、このページに貼り付けてエビデンスを収集しましょう。<br />取得日時とファイル名（自由入力）が管理でき、テストケースへドラッグ＆ドロップで整理できます。
+        </p>
+
+        <div
+          id="globalPasteArea"
+          class="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center text-gray-500 mb-8 transition-all hover:border-blue-400 hover:text-blue-600 cursor-pointer no-print-on-pdf"
+        >
+          <svg
+            class="mx-auto h-12 w-12 mb-2"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+            xmlns="http://www.w3.org/2000/svg"
+          >
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"
+            ></path>
+          </svg>
+          <p class="font-semibold text-lg">
+            ここにクリップボードから画像を貼り付けてください (Ctrl+V / Cmd+V)
+          </p>
+          <p class="text-sm">
+            または、画像ファイルをクリックして複数選択するか、ドラッグ＆ドロップしてください。（未分類として追加後、自動で新規テストケースを作成し移動します）
+          </p>
+          <input
+            type="file"
+            id="globalFileInput"
+            accept="image/*"
+            class="hidden"
+            multiple
+          />
+        </div>
+
+        <div
+          id="mainActionButtons"
+          class="flex flex-wrap justify-center items-center gap-4 mb-8 no-print-on-pdf"
+        >
+          <button
+            id="addTestCaseButton"
+            class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 px-6 rounded-lg shadow-md transition-all duration-300 transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+          >
+            テストケースをまとめて追加
+          </button>
+          <button
+            id="saveDataButton"
+            class="bg-gray-600 hover:bg-gray-700 text-white font-bold py-3 px-6 rounded-lg shadow-md transition-all duration-300 transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-gray-500"
+          >
+            データを保存
+          </button>
+          <button
+            id="bulkDownloadImages"
+            class="bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-6 rounded-lg shadow-md transition-all duration-300 transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-green-500 flex items-center"
+          >
+            <svg
+              class="inline-block w-5 h-5 mr-2"
+              fill="currentColor"
+              viewBox="0 0 20 20"
+              xmlns="http://www.w3.org/2000/svg"
+            >
+              <path
+                fill-rule="evenodd"
+                d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm3.293-7.707a1 1 0 011.414 0L9 10.586V3a1 1 0 112 0v7.586l1.293-1.293a1 1 0 111.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z"
+                clip-rule="evenodd"
+              />
+            </svg>
+            すべての画像をZIP保存
+          </button>
+
+          <!-- タイムスタンプトグル -->
+          <label class="flex items-center gap-2 cursor-pointer">
+            <input
+              type="checkbox"
+              id="disableTimestampToggle"
+              class="w-5 h-5 cursor-pointer"
+            />
+            <span class="text-sm font-medium text-gray-700"
+              >タイムスタンプなしでダウンロード</span
+            >
+          </label>
+
+          <!-- 追加: キャッシュクリアボタン（重複防止のため id を付与） -->
+          <button
+            id="clearCacheButton"
+            class="bg-red-600 hover:bg-red-700 text-white font-bold py-3 px-6 rounded-lg shadow-md transition-all duration-300 transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-red-500 ml-4"
+          >
+            キャッシュをクリア
+          </button>
+        </div>
+
+        <div id="testCaseList" class="space-y-8"></div>
+
+        <div
+          id="globalAddTestCaseWrapper"
+          class="mt-6 flex justify-center no-print-on-pdf"
+        >
+          <button
+            id="addTestCaseButtonGlobal"
+            class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 px-6 rounded-lg shadow-md transition-all duration-300 transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+          >
+            ＋ 新しいテストケースを追加
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- App message toast -->
+    <div
+      id="appMessage"
+      class="fixed top-4 right-4 p-4 rounded-lg shadow-lg text-white z-[10000] transition-opacity duration-300 opacity-0 no-print-on-pdf"
+    ></div>
+
+    <!-- Confirm modal -->
+    <div id="confirmModalOverlay" class="modal-overlay">
+      <div class="modal-content">
+        <p class="text-lg font-semibold mb-4" id="confirmModalMessage"></p>
+        <div class="flex justify-center space-x-4">
+          <button
+            id="confirmModalConfirmBtn"
+            class="bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-4 rounded-lg shadow-md transition-all"
+          >
+            削除
+          </button>
+          <button
+            id="confirmModalCancelBtn"
+            class="bg-gray-300 hover:bg-gray-400 text-gray-800 font-bold py-2 px-4 rounded-lg shadow-md transition-all"
+          >
+            キャンセル
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Image fullscreen modal -->
+    <div id="imageModalOverlay" class="no-print-on-pdf">
+      <img id="imageModalContent" src="" alt="拡大画像" />
+    </div>
+
+    <!-- Image editor modal -->
+    <div id="editorModalOverlay" class="modal-overlay">
+      <div class="editor-modal-content">
+        <canvas id="editorCanvas"></canvas>
+        <div class="editor-controls no-print-on-pdf">
+          <button
+            id="drawRectBtn"
+            class="tool-btn bg-gray-200 hover:bg-gray-300 text-gray-800"
+          >
+            矩形
+          </button>
+          <button
+            id="drawLineBtn"
+            class="tool-btn bg-gray-200 hover:bg-gray-300 text-gray-800"
+          >
+            線
+          </button>
+          <button
+            id="undoBtn"
+            class="bg-yellow-500 hover:bg-yellow-600 text-white"
+          >
+            元に戻す
+          </button>
+          <button
+            id="saveEditBtn"
+            class="bg-green-600 hover:bg-green-700 text-white"
+          >
+            変更を保存
+          </button>
+          <button
+            id="closeEditBtn"
+            class="bg-red-600 hover:bg-red-700 text-white"
+          >
+            キャンセル
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Loading overlay -->
+    <div id="loadingOverlay" class="loading-overlay no-print-on-pdf">
+      <div class="spinner mb-3"></div>
+      <div>処理中です…</div>
+    </div>
+
+    <!-- ペーストガイド -->
+    <div id="pasteGuide">
+      <svg
+        class="w-5 h-5"
+        fill="none"
+        stroke="currentColor"
+        viewBox="0 0 24 24"
+      >
+        <path
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          stroke-width="2"
+          d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"
+        />
+      </svg>
+      <span
+        >画像を貼り付けるには <span class="keyboard-shortcut">Ctrl</span>+<span
+          class="keyboard-shortcut"
+          >V</span
+        ></span
+      >
+    </div>
+
+    <!-- モーダルを追加（body終了タグの前に追加） -->
+    <div id="bulkAddTestCaseModal" class="modal-overlay">
+      <div class="modal-content">
+        <h3 class="text-xl font-bold mb-4">テストケースをまとめて追加</h3>
+        <div class="space-y-4">
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">
+              開始テストNo.
+            </label>
+            <input
+              type="number"
+              id="startTestNo"
+              min="1"
+              class="w-full p-2 border border-gray-300 rounded-md focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
+            />
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">
+              終了テストNo.
+            </label>
+            <input
+              type="number"
+              id="endTestNo"
+              min="1"
+              class="w-full p-2 border border-gray-300 rounded-md focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
+            />
+          </div>
+        </div>
+        <div class="flex justify-center space-x-4 mt-6">
+          <button
+            id="bulkAddCancelBtn"
+            class="bg-gray-300 hover:bg-gray-400 text-gray-800 font-bold py-2 px-4 rounded-lg"
+          >
+            キャンセル
+          </button>
+          <button
+            id="bulkAddConfirmBtn"
+            class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-4 rounded-lg"
+          >
+            作成する
+          </button>
+        </div>
+      </div>
+    </div>
+    <script type="module" src="./main.js"></script>
+  </body>
+</html>
