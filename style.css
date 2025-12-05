@@ -362,6 +362,15 @@ body.sidebar-open #sidebarToggleBtn {
   flex-direction: column;
   overflow: hidden;
 }
+.editor-canvas-wrapper {
+  flex: 1;
+  overflow: auto;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 0;
+  margin-bottom: 1rem;
+}
 #editorCanvas {
   border: 1px solid #ccc;
   cursor: crosshair;
@@ -377,8 +386,10 @@ body.sidebar-open #sidebarToggleBtn {
   display: flex;
   justify-content: center;
   gap: 1rem;
-  margin-top: 1rem;
   flex-wrap: wrap;
+  flex-shrink: 0;
+  padding-top: 1rem;
+  border-top: 1px solid #e5e7eb;
 }
 .editor-controls button {
   padding: 0.5rem 1rem;
