@@ -139,7 +139,7 @@ export function addDragDropListeners() {
   // 必要なモジュールをインポート
   import("./state.js").then((stateModule) => {
     import("./actions.js").then((actionsModule) => {
-      const { setDraggedItem } = stateModule;
+      const { setDraggedItem, getDraggedItem } = stateModule;
       const { handleDropOnTestCase } = actionsModule;
 
       document.querySelectorAll(".evidence-item-wrapper").forEach((el) => {
@@ -166,7 +166,7 @@ export function addDragDropListeners() {
             container.classList.add("drop-target");
 
             // 同じコンテナ内での並び替え処理
-            const currentDraggedItem = stateModule.draggedItem;
+            const currentDraggedItem = getDraggedItem();
             if (!currentDraggedItem) return;
 
             const afterElement = getDragAfterElement(container, e.clientY);
@@ -183,7 +183,7 @@ export function addDragDropListeners() {
             console.log("Drop on container:", container.id);
             container.classList.remove("drop-target");
             // ドロップ時に最新のdraggedItemを取得
-            const currentDraggedItem = stateModule.draggedItem;
+            const currentDraggedItem = getDraggedItem();
             console.log("Current dragged item:", currentDraggedItem);
             if (currentDraggedItem) {
               const evidenceId = currentDraggedItem.dataset.id;

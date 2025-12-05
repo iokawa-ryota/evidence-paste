@@ -6,9 +6,9 @@ import {
   getProjects,
   getEvidenceById,
   setDraggedItem,
-  draggedItem,
+  getDraggedItem,
   loadEvidenceImage,
-  selectedEvidenceId,
+  getSelectedEvidenceId,
   setSelectedEvidence,
   clearSelectedEvidence,
 } from "./state.js";
@@ -339,45 +339,40 @@ export function closeSidebar() {
  * エビデンスの選択状態をトグル
  */
 function toggleEvidenceSelection(evidenceId) {
-  // state.jsから最新のselectedEvidenceIdを取得
-  import("./state.js").then((stateModule) => {
-    const current = stateModule.selectedEvidenceId;
+  const current = getSelectedEvidenceId();
 
-    // 前の選択を解除
-    if (current) {
-      const prevElement = document.getElementById(current);
-      if (prevElement) {
-        prevElement.classList.remove("selected");
-      }
+  // 前の選択を解除
+  if (current) {
+    const prevElement = document.getElementById(current);
+    if (prevElement) {
+      prevElement.classList.remove("selected");
     }
+  }
 
-    // 同じものをクリックした場合は選択解除
-    if (current === evidenceId) {
-      clearSelectedEvidence();
-    } else {
-      // 新しく選択
-      setSelectedEvidence(evidenceId);
-      const element = document.getElementById(evidenceId);
-      if (element) {
-        element.classList.add("selected");
-      }
+  // 同じものをクリックした場合は選択解除
+  if (current === evidenceId) {
+    clearSelectedEvidence();
+  } else {
+    // 新しく選択
+    setSelectedEvidence(evidenceId);
+    const element = document.getElementById(evidenceId);
+    if (element) {
+      element.classList.add("selected");
     }
-  });
+  }
 }
 
 /**
  * 選択状態を再適用（再レンダリング後）
  */
 export function reapplySelection() {
-  import("./state.js").then((stateModule) => {
-    const current = stateModule.selectedEvidenceId;
-    if (current) {
-      const element = document.getElementById(current);
-      if (element) {
-        element.classList.add("selected");
-      }
+  const current = getSelectedEvidenceId();
+  if (current) {
+    const element = document.getElementById(current);
+    if (element) {
+      element.classList.add("selected");
     }
-  });
+  }
 }
 
 export function setupBulkAddModal() {

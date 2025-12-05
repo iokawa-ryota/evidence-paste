@@ -10,10 +10,14 @@ import {
 
 const LOCAL_STORAGE_KEY = "webEvidenceToolProjects_v1";
 
+// ==========================================
+// プライベート状態変数（外部から直接アクセス不可）
+// ==========================================
+
 // エビデンスデータ構造を変更（dataUrl/baseDataUrlはメモリ上のみ）
 // localStorageには保存しない
-export const projects = [];
-export let currentProjectId = null;
+const projects = [];
+let currentProjectId = null;
 
 // メモリ管理用: 現在読み込まれているObject URLのマップ
 const loadedImageUrls = new Map(); // evidenceId -> { dataUrl, baseDataUrl }
@@ -22,10 +26,50 @@ const loadQueue = []; // LRUキューとして使用
 const loadingEvidences = new Set(); // 現在読み込み中のエビデンスID
 
 // ドラッグ中のアイテムを保持
-export let draggedItem = null;
+let draggedItem = null;
 
 // 選択中のエビデンスID
-export let selectedEvidenceId = null;
+let selectedEvidenceId = null;
+
+// ==========================================
+// ゲッター関数（読み取り専用アクセス）
+// ==========================================
+
+/**
+ * 全プロジェクトのリストを取得（読み取り専用）
+ * @returns {Array} プロジェクトの配列
+ */
+export function getProjects() {
+  return projects;
+}
+
+/**
+ * 現在のプロジェクトIDを取得
+ * @returns {string|null} 現在のプロジェクトID
+ */
+export function getCurrentProjectId() {
+  return currentProjectId;
+}
+
+/**
+ * ドラッグ中のアイテムを取得
+ * @returns {HTMLElement|null} ドラッグ中のDOM要素
+ */
+export function getDraggedItem() {
+  return draggedItem;
+}
+
+/**
+ * 選択中のエビデンスIDを取得
+ * @returns {string|null} 選択中のエビデンスID
+ */
+export function getSelectedEvidenceId() {
+  return selectedEvidenceId;
+}
+
+// ==========================================
+// セッター関数（状態変更）
+// ==========================================
 
 /**
  * ドラッグ中のアイテムを設定
@@ -55,9 +99,9 @@ export function clearSelectedEvidence() {
   selectedEvidenceId = null;
 }
 
-export function getProjects() {
-  return projects;
-}
+// ==========================================
+// プロジェクト関連の関数
+// ==========================================
 
 export function getCurrentProject() {
   return projects.find((p) => p.id === currentProjectId) || null;
@@ -328,6 +372,8 @@ export function saveData() {
           comment: ev.comment,
           testCaseId: ev.testCaseId,
           originalDate: ev.originalDate,
+          originalMimeType: ev.originalMimeType,
+          isEdited: ev.isEdited,
           // dataUrl, baseDataUrl は保存しない
         })),
       })),
@@ -336,7 +382,7 @@ export function saveData() {
     localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(data));
   } catch (err) {
     console.error("データ保存エラー:", err);
-    showMessage("データの保存に失敗しました。", true);
+    // showMessage は循環参照を防ぐため使用しない
   }
 }
 
