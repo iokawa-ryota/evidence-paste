@@ -21,6 +21,11 @@ async function exportProjectToZip() {
     const zip = new JSZip();
     const usedFileNames = new Set();
 
+    // Before, After, Export フォルダを親フォルダ直下に作成
+    const beforeFolder = zip.folder("Before");
+    const afterFolder = zip.folder("After");
+    const exportFolder = zip.folder("Export");
+
     // Group evidence by test case
     const groupedByTestCase = currentProject.testCases.reduce((acc, tc) => {
       acc[tc.id] = {
@@ -46,19 +51,54 @@ async function exportProjectToZip() {
       };
     }
 
-    for (const tcId in groupedByTestCase) {
+    // テストケースの順序でループ（testCasesの順序を維持）
+    const testCaseOrder = [
+      ...currentProject.testCases,
+      { id: "unclassified", name: "未分類" },
+    ];
+    let testCaseIndex = 1;
+
+    for (const tc of testCaseOrder) {
+      const tcId = tc.id;
       const group = groupedByTestCase[tcId];
-      if (group.evidence.length === 0) continue;
+      if (!group || group.evidence.length === 0) continue;
 
+      // フォルダ名はテストケース名のみ
       const folderName = sanitizeFileName(group.name);
-      const folder = zip.folder(folderName);
 
-      // Sort evidence by date
-      group.evidence.sort(
-        (a, b) => new Date(a.originalDate) - new Date(b.originalDate)
+      // 各フォルダ配下にテストケースフォルダを作成
+      const beforeTestCaseFolder = beforeFolder.folder(folderName);
+      const afterTestCaseFolder = afterFolder.folder(folderName);
+      const exportTestCaseFolder = exportFolder.folder(folderName);
+
+      // UI上の並び順を取得（DOM要素の順序を反映）
+      const containerElement = document.getElementById(
+        `evidence-container-${tcId}`
       );
+      let sortedEvidence = [...group.evidence];
 
-      for (const [index, evidence] of group.evidence.entries()) {
+      if (containerElement) {
+        // DOM要素の順序でソート
+        const evidenceElements = Array.from(containerElement.children);
+        const domOrder = evidenceElements
+          .map((el) => el.dataset.evidenceId)
+          .filter((id) => id); // 有効なIDのみ
+
+        sortedEvidence.sort((a, b) => {
+          const indexA = domOrder.indexOf(a.id);
+          const indexB = domOrder.indexOf(b.id);
+          if (indexA === -1) return 1;
+          if (indexB === -1) return -1;
+          return indexA - indexB;
+        });
+      } else {
+        // DOMが見つからない場合は日付順にフォールバック
+        sortedEvidence.sort(
+          (a, b) => new Date(a.originalDate) - new Date(b.originalDate)
+        );
+      }
+
+      for (const [index, evidence] of sortedEvidence.entries()) {
         const baseName = sanitizeFileName(
           evidence.comment || `evidence-${index + 1}`
         );
@@ -73,42 +113,60 @@ async function exportProjectToZip() {
         )}_${baseName}.${extension}`;
 
         let nameCounter = 1;
-        while (usedFileNames.has(`${folderName}/${finalFileName}`)) {
+        const baseKey = `${folderName}/${finalFileName}`;
+        while (usedFileNames.has(baseKey)) {
           finalFileName = `${String(index + 1).padStart(
             3,
             "0"
           )}_${baseName}_${nameCounter++}.${extension}`;
         }
-        usedFileNames.add(`${folderName}/${finalFileName}`);
+        usedFileNames.add(baseKey);
 
-        // トグル状態に応じて画像を選択
-        let blob;
-        if (disableTimestamp) {
-          // タイムスタンプなし：元画像をIndexedDBから取得
-          blob = await getImageFromIndexedDB(`${evidence.id}_base`);
-          if (!blob) {
-            console.warn(
-              `Base image not found for ${evidence.id}, using stamped`
-            );
-            blob = await getImageFromIndexedDB(`${evidence.id}_stamped`);
+        // Before: 常にオリジナル画像を保存
+        const originalBlob = evidence.isEdited
+          ? await getImageFromIndexedDB(`${evidence.id}_original`)
+          : await getImageFromIndexedDB(`${evidence.id}_base`);
+
+        if (originalBlob) {
+          beforeTestCaseFolder.file(finalFileName, originalBlob, {
+            date: new Date(evidence.originalDate),
+          });
+        }
+
+        // After: 編集済みの場合のみ、編集後の画像を保存
+        if (evidence.isEdited) {
+          let afterBlob;
+          if (disableTimestamp) {
+            // タイムスタンプなし：編集後のbase画像
+            afterBlob = await getImageFromIndexedDB(`${evidence.id}_base`);
+          } else {
+            // タイムスタンプあり：編集後のスタンプ済み画像
+            afterBlob = await getImageFromIndexedDB(`${evidence.id}_stamped`);
           }
-        } else {
-          // タイムスタンプあり：スタンプ済み画像をIndexedDBから取得
-          blob = await getImageFromIndexedDB(`${evidence.id}_stamped`);
-          if (!blob) {
-            console.warn(
-              `Stamped image not found for ${evidence.id}, using base`
-            );
-            blob = await getImageFromIndexedDB(`${evidence.id}_base`);
+
+          if (afterBlob) {
+            afterTestCaseFolder.file(finalFileName, afterBlob, {
+              date: new Date(evidence.originalDate),
+            });
           }
         }
 
-        if (!blob) {
+        // Export: 最終的な画像（編集済みなら編集後、未編集ならオリジナル）
+        let exportBlob;
+        if (disableTimestamp) {
+          // タイムスタンプなし：base画像
+          exportBlob = await getImageFromIndexedDB(`${evidence.id}_base`);
+        } else {
+          // タイムスタンプあり：スタンプ済み画像
+          exportBlob = await getImageFromIndexedDB(`${evidence.id}_stamped`);
+        }
+
+        if (!exportBlob) {
           console.error(`No image found for ${evidence.id}`);
           continue;
         }
 
-        folder.file(finalFileName, blob, {
+        exportTestCaseFolder.file(finalFileName, exportBlob, {
           date: new Date(evidence.originalDate),
         });
       }

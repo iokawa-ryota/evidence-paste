@@ -164,6 +164,17 @@ export function addDragDropListeners() {
             e.preventDefault();
             e.dataTransfer.dropEffect = "move";
             container.classList.add("drop-target");
+
+            // 同じコンテナ内での並び替え処理
+            const currentDraggedItem = stateModule.draggedItem;
+            if (!currentDraggedItem) return;
+
+            const afterElement = getDragAfterElement(container, e.clientY);
+            if (afterElement == null) {
+              container.appendChild(currentDraggedItem);
+            } else {
+              container.insertBefore(currentDraggedItem, afterElement);
+            }
           };
           container.ondragleave = () =>
             container.classList.remove("drop-target");
@@ -189,4 +200,29 @@ export function addDragDropListeners() {
         });
     });
   });
+}
+
+/**
+ * ドラッグ中の要素の挿入位置を計算します。
+ * @param {HTMLElement} container
+ * @param {number} y
+ * @returns {HTMLElement | null}
+ */
+function getDragAfterElement(container, y) {
+  const draggableElements = [
+    ...container.querySelectorAll(".evidence-item-wrapper:not(.dragging)"),
+  ];
+
+  return draggableElements.reduce(
+    (closest, child) => {
+      const box = child.getBoundingClientRect();
+      const offset = y - box.top - box.height / 2;
+      if (offset < 0 && offset > closest.offset) {
+        return { offset: offset, element: child };
+      } else {
+        return closest;
+      }
+    },
+    { offset: Number.NEGATIVE_INFINITY }
+  ).element;
 }

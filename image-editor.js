@@ -17,6 +17,7 @@ import {
   safeOn,
   showConfirmModal,
 } from "./utils.js";
+import { saveImageToIndexedDB, getImageFromIndexedDB } from "./indexeddb.js";
 
 let isDrawing = false,
   startX = 0,
@@ -143,6 +144,19 @@ export function setupEditor() {
       const evidence = getEvidenceById(currentImageEvidenceId);
       if (!evidence) throw new Error("対象エビデンスが見つかりません。");
 
+      // 初回編集時のみ、元のbase画像を_originalとして保存
+      if (!evidence.isEdited) {
+        const originalBlob = await getImageFromIndexedDB(
+          `${currentImageEvidenceId}_base`
+        );
+        if (originalBlob) {
+          await saveImageToIndexedDB(
+            `${currentImageEvidenceId}_original`,
+            originalBlob
+          );
+        }
+      }
+
       // 元の画像形式を取得（デフォルトはJPEG）
       const mimeType = evidence.originalMimeType || "image/jpeg";
       const quality = mimeType === "image/jpeg" ? 0.92 : undefined;
@@ -157,14 +171,22 @@ export function setupEditor() {
         mimeType
       );
 
+      // IndexedDBを更新: _baseを編集後の画像に、_stampedをスタンプ済みに
+      await saveImageToIndexedDB(`${currentImageEvidenceId}_base`, editedBlob);
+      await saveImageToIndexedDB(
+        `${currentImageEvidenceId}_stamped`,
+        stampedResult.blob
+      );
+
       // Revoke old URLs
       revokeObjectUrl(evidence.dataUrl);
       revokeObjectUrl(evidence.baseDataUrl);
 
-      // Update evidence with new URLs
+      // Update evidence with new URLs and isEdited flag
       updateEvidenceInState(currentImageEvidenceId, {
         baseDataUrl: createObjectUrlForBlob(editedBlob), // Edited is the new base
         dataUrl: stampedResult.url, // Stamped is the new preview
+        isEdited: true, // 編集済みフラグを立てる
       });
 
       document.getElementById(`evidence-img-${evidence.id}`).src =
