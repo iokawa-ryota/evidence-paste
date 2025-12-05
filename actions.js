@@ -23,6 +23,8 @@ import {
   dataURLToBlob,
   revokeObjectUrl,
   showConfirmModal,
+  parseLocalDateTimeToISO,
+  formatDateTimeForInput,
 } from "./utils.js";
 import DOM from "./dom.js";
 import { addEvidenceWithImage, removeEvidenceCompletely } from "./state.js";
@@ -153,11 +155,26 @@ export async function addEvidence(
   const originalMimeType = blob.type || "image/jpeg";
   console.log("Original image type:", originalMimeType);
 
-  const evidenceDate = date ? new Date(date) : new Date();
+  // 日付が文字列の場合は安全に解析、Dateオブジェクトならそのまま使用
+  // EXIFから来るDateオブジェクトは既にUTCに変換済み
+  let evidenceDate;
+  if (date instanceof Date) {
+    evidenceDate = date;
+  } else if (typeof date === "string") {
+    evidenceDate = new Date(date);
+    // 無効な日付の場合は現在時刻を使用
+    if (isNaN(evidenceDate.getTime())) {
+      console.warn("Invalid date string, using current time:", date);
+      evidenceDate = new Date();
+    }
+  } else {
+    evidenceDate = new Date();
+  }
+
   console.log("addEvidence - received date:", date); // デバッグ用
-  console.log("addEvidence - evidenceDate:", evidenceDate); // デバッグ用
+  console.log("addEvidence - evidenceDate (UTC):", evidenceDate.toISOString()); // デバッグ用
   const stampText = formatDateTime(evidenceDate);
-  console.log("addEvidence - stampText:", stampText); // デバッグ用
+  console.log("addEvidence - stampText (JST):", stampText); // デバッグ用
 
   let stamped;
   try {
@@ -206,15 +223,15 @@ export async function updateEvidenceDate(
   const ev = getEvidenceById(evidenceId);
   if (!ev) return;
 
-  const newJSTDate = new Date(newDateString.replace("T", " ") + ":00");
+  // 安全な日付解析を使用
+  const newDateISO = parseLocalDateTimeToISO(newDateString);
 
-  if (isNaN(newJSTDate.getTime())) {
+  if (!newDateISO) {
     showMessage("無効な日付形式です。", true);
     inputElement.value = formatDateTimeForInput(ev.originalDate); // Revert
     return;
   }
 
-  const newDateISO = newJSTDate.toISOString();
   const formattedNewDate = formatDateTime(newDateISO);
 
   // Re-stamp the base image with the new date

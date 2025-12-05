@@ -154,14 +154,33 @@ function parseExifDate(dateString) {
   }
 
   const [, year, month, day, hour, minute, second] = match;
-  const date = new Date(
-    parseInt(year),
-    parseInt(month) - 1, // 月は0-11
-    parseInt(day),
-    parseInt(hour),
-    parseInt(minute),
-    parseInt(second)
+
+  // 各コンポーネントを安全に解析
+  const y = parseInt(year, 10);
+  const m = parseInt(month, 10);
+  const d = parseInt(day, 10);
+  const h = parseInt(hour, 10);
+  const min = parseInt(minute, 10);
+  const s = parseInt(second, 10);
+
+  // 妥当性チェック
+  if (m < 1 || m > 12 || d < 1 || d > 31 || h > 23 || min > 59 || s > 59) {
+    console.log("parseExifDate: 無効な日付値"); // デバッグ用
+    return null;
+  }
+
+  // EXIF日時はカメラの現地時刻（通常JST）として解釈
+  // Date.UTCを使用してUTCとして作成し、その後JSTオフセット(-9時間)を適用
+  const utcDate = new Date(
+    Date.UTC(y, m - 1, d, h, min, s) - 9 * 60 * 60 * 1000
   );
-  console.log("parseExifDate: パース成功", date); // デバッグ用
-  return date;
+
+  // 無効な日付チェック（例: 2月30日など）
+  if (isNaN(utcDate.getTime())) {
+    console.log("parseExifDate: 無効な日付"); // デバッグ用
+    return null;
+  }
+
+  console.log("parseExifDate: パース成功 (JST→UTC)", utcDate.toISOString()); // デバッグ用
+  return utcDate;
 }

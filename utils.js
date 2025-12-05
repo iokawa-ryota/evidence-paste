@@ -46,13 +46,20 @@ export function hideLoading() {
 }
 
 /**
- * タイムゾーンを考慮して日付オブジェクトを正規化します。
+ * 日付を安全にDateオブジェクトに正規化
  * @param {Date | string} date
  * @returns {Date}
  */
 export function normalizeToLocalDate(date) {
   if (!date) return new Date();
-  return new Date(date);
+
+  if (date instanceof Date) {
+    return isNaN(date.getTime()) ? new Date() : date;
+  }
+
+  // 文字列の場合、ISO 8601形式を期待
+  const parsed = new Date(date);
+  return isNaN(parsed.getTime()) ? new Date() : parsed;
 }
 
 /**
@@ -102,6 +109,47 @@ export function formatDateTimeForInput(utcDate) {
   const minutes = getPart("minute");
 
   return `${year}-${month}-${day}T${hours}:${minutes}`;
+}
+
+/**
+ * datetime-local形式の文字列からISO 8601形式のUTC日付文字列を生成（安全な解析）
+ * @param {string} dateTimeLocalString - "YYYY-MM-DDTHH:mm" 形式
+ * @returns {string|null} ISO 8601形式の日付文字列、または無効な場合はnull
+ */
+export function parseLocalDateTimeToISO(dateTimeLocalString) {
+  if (!dateTimeLocalString) return null;
+
+  // YYYY-MM-DDTHH:mm 形式の検証
+  const match = dateTimeLocalString.match(
+    /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})$/
+  );
+  if (!match) return null;
+
+  const [, year, month, day, hour, minute] = match;
+
+  // 各コンポーネントの妥当性チェック
+  const y = parseInt(year, 10);
+  const m = parseInt(month, 10);
+  const d = parseInt(day, 10);
+  const h = parseInt(hour, 10);
+  const min = parseInt(minute, 10);
+
+  if (m < 1 || m > 12) return null;
+  if (d < 1 || d > 31) return null;
+  if (h < 0 || h > 23) return null;
+  if (min < 0 || min > 59) return null;
+
+  // JSTとして解釈してUTCに変換
+  // JST = UTC+9なので、9時間引く
+  const jstDate = new Date(y, m - 1, d, h, min, 0, 0);
+
+  // 無効な日付チェック（例: 2月30日など）
+  if (isNaN(jstDate.getTime())) return null;
+
+  // JSTからUTCに変換（-9時間）
+  const utcDate = new Date(jstDate.getTime() - 9 * 60 * 60 * 1000);
+
+  return utcDate.toISOString();
 }
 
 /**
